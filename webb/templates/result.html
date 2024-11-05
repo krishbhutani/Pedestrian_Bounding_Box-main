@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1 style="color: #1d0c0c; font-size: 40px; font-family: 'Arial', sans-serif; text-align: center;">Prediction Result</h1>
+
+    <p style="font-size: 28px;">Number of people detected: {{ people_count }}</p>
+
+    
+    <div class="image-container">
+        <img src="{{ url_for('uploaded_file', filename=image_file) }}" alt="Result Image">
+    </div>
+    
+    <br>
+    <a href="/">Upload another image</a1>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>YOLOv8 Person Detection</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    </head>
+    <body style="background: linear-gradient(to right, #e9876f, #700808)">
+        <!-- Replace with your desired color -->
+        <h1 style="color: #1f0b4b; font-size: 80px; font-family: &quot;Arial&quot;, sans-serif">
+            Upload an Image to Detect People
+        </h1>
+
+        <form
+            action="/predict"
+            method="POST"
+            enctype="multipart/form-data"
+            style="background-color: #cc9191; padding: 20px; border-radius: 50px">
+            <input
+                type="file"
+                name="image"
+                accept="image/*"
+                required
+                style="
+                    background-color: #7392b5;
+                    color: #0000005c;
+                    border: none;
+                    padding: 10px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    font-family: &quot;Arial&quot;, sans-serif;
+                " />
+
+            <button
+                type="submit"
+                style="
+                    background-color: #a34177;
+                    color: #000000;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                ">
+                Predict
+            </button>
+        </form>
+    </body>
+</html>

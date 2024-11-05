@@ -1,0 +1,116 @@
+# name: Deploy to AWS
+
+# on:
+#   push:
+#     branches:
+#       - main # Adjust the branch based on your workflow
+
+# jobs:
+#   build_and_deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       # Checkout the latest code
+#       - name: Checkout code
+#         uses: actions/checkout@v2
+
+#       # Set up AWS credentials for authentication
+#       - name: Configure AWS Credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: us-east-1 # Change to your AWS region
+
+#       # Log in to AWS ECR
+#       - name: Log in to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v1
+
+#       # Build the Docker image
+#       - name: Build Docker image
+#         run: |
+#           docker build -t mlapp:latest .
+#           docker tag mlapp:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/mlapp:latest
+
+#       # Push the Docker image to AWS ECR
+#       - name: Push Docker image to ECR
+#         run: |
+#           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/mlapp:latest
+
+#       # Deploy the Docker image to AWS EC2 (or ECS, or Elastic Beanstalk)
+#       - name: Deploy to AWS EC2
+#         run: |
+#           ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
+#             # Pull the latest image from ECR
+#             docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/mlapp:latest
+#             docker stop mlapp || true
+#             docker rm mlapp || true
+#             docker run -d -p 8005:8005 --name mlapp ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/mlapp:latest
+#           EOF
+
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main # Adjust the branch based on your workflow
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the latest code
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Set up AWS credentials for authentication
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1 # Change to your AWS region
+
+      # Log in to AWS ECR
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # Build the Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t mlapp:latest .
+          docker tag mlapp:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/mlapp:latest
+
+      - name: Push Docker Image to ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          docker tag mlapp:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/mlapp:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/mlapp:latest
+
+      # Deploy the Docker image to AWS EC2 (or ECS, or Elastic Beanstalk)
+      - name: Deploy to AWS EC2
+        run: |
+          # Save the SSH private key from GitHub Secrets
+          echo "${{ secrets.EC2_SSH_KEY }}" > /tmp/ec2-key.pem
+          chmod 600 /tmp/ec2-key.pem
+
+          # SSH into the EC2 instance and run the deployment commands
+          ssh -i /tmp/ec2-key.pem -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_PUBLIC_IP }} << EOF
+            # Authenticate Docker to AWS ECR
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+            
+            # Pull the latest Docker image from ECR
+            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/mlapp:latest
+            
+            # Check if a container with the name 'mlapp' exists (whether running or stopped) and remove it
+            if [ \$(docker ps -aq -f name=mlapp) ]; then
+              docker stop mlapp || true
+              docker rm mlapp || true
+            fi
+
+            # Run the latest Docker image
+            docker run -d -p 8005:8005 --name mlapp ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/mlapp:latest
+          EOF
